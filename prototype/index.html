@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="独立开发者网站工作台交互原型">
+  <title>工作台 · 站点组合</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" aria-label="主导航">
+      <div class="brand"><span class="brand-mark">/</span><div><strong>工作台</strong><small>站点组合 · 演示</small></div></div>
+      <nav class="nav-list">
+        <button class="nav-item active" data-view="today"><span>01</span>今日工作台</button>
+        <button class="nav-item" data-view="sites"><span>02</span>网站与详情</button>
+        <button class="nav-item" data-view="calendar"><span>03</span>日历</button>
+        <button class="nav-item" data-view="opportunities"><span>04</span>新站计划池</button>
+        <button class="nav-item" data-view="inbox"><span>05</span>待整理 <span class="nav-count" id="inboxNavCount">0</span></button>
+      </nav>
+      <div class="sidebar-note"><span class="eyebrow">工作原则</span><p>让下次开工从一个清楚的下一行动开始。</p></div>
+      <button class="reset-button" id="resetDemo">重置演示数据</button>
+    </aside>
+
+    <main class="main-content">
+      <header class="topbar">
+        <div><span class="eyebrow" id="topDate">今天</span><h1 id="pageTitle">今天，先把一个闭环收好</h1></div>
+        <div class="topbar-meta"><span class="demo-chip">● 演示数据</span><span id="saveState">本地已保存</span></div>
+      </header>
+
+      <div id="toast" class="toast" role="status" aria-live="polite"></div>
+      <div id="actionDialog" class="dialog-backdrop" role="dialog" aria-modal="true" aria-labelledby="dialogTitle" hidden></div>
+
+      <section class="view active" id="view-today" aria-labelledby="todayHeading">
+        <div class="intro-row"><div><span class="eyebrow">今日节奏</span><h2 id="todayHeading">把可推进的事，放在眼前</h2><p class="lede">演示数据 · <span id="todaySiteSummary">0 个站点 · 0 个待复盘节点</span></p></div><button class="text-button" data-view-target="sites">查看全部站点 →</button></div>
+        <div class="metric-strip"><div><span>今日待办</span><strong id="todoCount">0</strong></div><div><span>等待条件</span><strong id="waitingCount">0</strong></div><div><span>本周复盘</span><strong id="reviewCount">0</strong></div><div class="metric-accent"><span>近7日记录</span><strong><span id="recentLogCount">0</span><span class="unit"> 次</span></strong></div></div>
+        <div class="content-grid">
+          <div class="panel task-panel"><div class="panel-heading"><div><span class="eyebrow">下一步</span><h3>今天要做</h3></div><span class="count-label" id="taskLabel">—</span></div><div id="taskList" class="task-list"></div></div>
+          <div class="panel waiting-panel"><div class="panel-heading"><div><span class="eyebrow">需要条件</span><h3>等待与风险</h3></div><span class="status-dot"></span></div><div id="waitingList"></div></div>
+        </div>
+        <div class="section-heading"><div><span class="eyebrow">站点脉搏</span><h3>所有工作，放回各自上下文</h3></div><button class="text-button" data-view-target="sites">打开网站列表 →</button></div>
+        <div id="sitePulse" class="site-pulse"></div>
+      </section>
+
+      <section class="view" id="view-sites" aria-labelledby="sitesHeading">
+        <div class="intro-row"><div><span class="eyebrow">站点组合</span><h2 id="sitesHeading">网站与详情</h2><p class="lede">阶段说清走到哪里，策略说清现在怎么管。</p></div><span class="surface-note">手动记录 · 本地保存</span></div>
+        <div class="sites-layout"><div class="site-list" id="siteList"></div><div class="site-detail" id="siteDetail"></div></div>
+      </section>
+
+      <section class="view" id="view-calendar" aria-labelledby="calendarHeading">
+        <div class="intro-row"><div><span class="eyebrow">同源安排</span><h2 id="calendarHeading">日历</h2><p class="lede">日历事件来自任务、报告确认和时间线，不需要重复录入。</p></div><span class="surface-note">四类事件</span></div>
+        <div class="calendar-layout"><div class="calendar-board" id="calendarBoard"></div><aside class="calendar-legend panel"><span class="eyebrow">事件类型</span><h3>看懂这一周</h3><p class="report-help">点击事件可完成或改期，操作会直接更新同源任务。</p><div class="legend-row"><i class="legend-dot execution"></i>执行</div><div class="legend-row"><i class="legend-dot review"></i>复盘</div><div class="legend-row"><i class="legend-dot maintenance"></i>固定维护</div><div class="legend-row"><i class="legend-dot deadline"></i>硬截止</div></aside></div>
+      </section>
+
+      <section class="view" id="view-opportunities" aria-labelledby="opportunityHeading">
+        <div class="intro-row"><div><span class="eyebrow">候选工作</span><h2 id="opportunityHeading">新站计划池</h2><p class="lede">先写清问题和停止条件，再决定是否把它变成网站。</p></div><button class="coral-button" id="showOpportunityForm">+ 记录新机会</button></div>
+        <div class="opportunity-layout"><div id="opportunityList" class="opportunity-list"></div><div class="panel opportunity-form-wrap" id="opportunityFormWrap" hidden><div class="panel-heading"><div><span class="eyebrow">结构化录入</span><h3>新机会</h3></div></div><p id="opportunityCaptureNote" class="capture-note" hidden></p><form id="opportunityForm"><label>用户问题<input name="problem" required placeholder="谁在什么场景卡住了？"></label><label>需求证据<textarea name="evidence" required placeholder="对话、原话、频次或手动链接"></textarea></label><label>最小验证动作<input name="validation" required placeholder="一周内可以做的验证"></label><label>MVP 范围<input name="scope" required placeholder="只包含什么"></label><label>投入上限<input name="budget" required placeholder="例如：2 个周末"></label><div class="form-two"><label>通过条件<input name="pass" required placeholder="什么结果才继续"></label><label>停止条件<input name="stop" required placeholder="什么结果就停止"></label></div><p id="opportunityError" class="form-error" role="alert"></p><div class="capture-actions"><button class="small-button" id="cancelOpportunityForm" type="button">取消</button><button class="coral-button" type="submit">保存到计划池</button></div></form></div></div>
+      </section>
+
+      <section class="view" id="view-inbox" aria-labelledby="inboxHeading">
+        <div class="intro-row"><div><span class="eyebrow">稍后人工整理</span><h2 id="inboxHeading">待整理</h2><p class="lede">先保存自己转写的文字，再决定进入站点、任务或新站计划池。<span id="inboxSummary">0 条待整理</span></p></div><button class="coral-button" id="openQuickCapture" type="button">+ 随手记</button></div>
+        <div class="panel quick-capture" id="quickCapturePanel" role="region" aria-labelledby="quickCaptureHeading" hidden>
+          <div class="panel-heading"><div><span class="eyebrow">先记录，再决定</span><h3 id="quickCaptureHeading">随手记</h3></div><span class="surface-note">本地保存</span></div>
+          <form id="quickCaptureForm" class="capture-form">
+            <label for="captureText">自己转写的原始文字 <span aria-hidden="true">*</span></label>
+            <textarea id="captureText" rows="3" required placeholder="先用你自己的工具转写，再粘贴需求、用户原话或待确认问题"></textarea>
+            <p class="capture-note">新随手记只保存你输入或粘贴的文字；不请求麦克风，也不创建音频数据。</p>
+            <p id="captureError" class="form-error" role="alert"></p>
+            <div class="capture-actions"><button class="small-button" id="cancelQuickCapture" type="button">取消</button><button class="coral-button" type="submit">保存到待整理</button></div>
+          </form>
+        </div>
+        <div id="captureList" class="capture-list"></div>
+      </section>
+    </main>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
