@@ -3,3 +3,8 @@ dist/
 .env
 .env.*
 !.env.example
+.DS_Store
+*.log
+.vite/
+coverage/
+.codex-adaptive-agents/

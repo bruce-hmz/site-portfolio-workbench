@@ -1,9 +1,25 @@
 export const DEFAULT_TIMEZONE = 'Asia/Shanghai'
 
+const dateKeyFormatters = new Map<string, Intl.DateTimeFormat>()
+const dateOnlyFormatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'UTC', month: 'short', day: 'numeric' })
+const dateOnlyWeekdayFormatter = new Intl.DateTimeFormat('zh-CN', { timeZone: 'UTC', weekday: 'short' })
+
+function dateKeyFormatter(timeZone: string): Intl.DateTimeFormat {
+  const cached = dateKeyFormatters.get(timeZone)
+  if (cached) return cached
+
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone, year: 'numeric', month: '2-digit', day: '2-digit',
+  })
+  dateKeyFormatters.set(timeZone, formatter)
+  return formatter
+}
+
 export function isValidTimeZone(value: string): boolean {
+  if (!value.trim()) return false
   try {
-    new Intl.DateTimeFormat('en-US', { timeZone: value }).format()
-    return Boolean(value.trim())
+    dateKeyFormatter(value)
+    return true
   } catch {
     return false
   }
@@ -14,9 +30,7 @@ export function normalizeTimeZone(value: string | null | undefined): string {
 }
 
 export function dateKeyInTimeZone(date: Date, timeZone: string): string {
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: normalizeTimeZone(timeZone), year: 'numeric', month: '2-digit', day: '2-digit',
-  }).formatToParts(date)
+  const parts = dateKeyFormatter(normalizeTimeZone(timeZone)).formatToParts(date)
   const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]))
   return `${values.year}-${values.month}-${values.day}`
 }
@@ -40,11 +54,11 @@ export function formatDateOnly(value: string | null, timeZone: string): string {
   if (!value) return '未设置'
   const date = dateOnlyValue(value, timeZone)
   if (Number.isNaN(date.getTime())) return '未设置'
-  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'UTC', month: 'short', day: 'numeric' }).format(date)
+  return dateOnlyFormatter.format(date)
 }
 
 export function weekdayForDateOnly(value: string, timeZone: string): string {
-  return new Intl.DateTimeFormat('zh-CN', { timeZone: 'UTC', weekday: 'short' }).format(dateOnlyValue(value, timeZone))
+  return dateOnlyWeekdayFormatter.format(dateOnlyValue(value, timeZone))
 }
 
 export function startOfWeekInTimeZone(timeZone: string, now = new Date()): string {

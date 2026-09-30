@@ -98,6 +98,29 @@ export type Report = {
   source_url: string | null
 }
 
+export type PageMeta = {
+  offset: number
+  nextOffset: number | null
+  total: number | null
+  hasMore: boolean
+}
+
+export type CompletedCapturePage = {
+  items: Capture[]
+  page: PageMeta
+}
+
+export type SiteLogPage = {
+  items: Log[]
+  page: PageMeta
+}
+
+export type CaptureDestination =
+  | { kind: 'log'; log: Log | null }
+  | { kind: 'task'; task: Task | null }
+  | { kind: 'opportunity'; opportunity: Opportunity | null }
+  | { kind: 'missing'; id: string }
+
 export type TimelineDraft = {
   siteId: string
   siteVersion: number

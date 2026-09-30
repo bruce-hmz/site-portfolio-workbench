@@ -3,12 +3,22 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
+  "packageManager": "pnpm@10.31.0",
+  "engines": {
+    "node": "24.18.0"
+  },
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
     "typecheck": "tsc -b --pretty false",
     "test:db": "node tests/database.mjs",
-    "test:ui": "vitest run --environment jsdom tests/interaction.test.tsx tests/date.test.ts",
+    "test:ui": "vitest run --environment jsdom tests/*.test.ts tests/*.test.tsx --exclude tests/bundling.test.ts",
+    "test:bundle": "vitest run --environment node tests/bundling.test.ts",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -23,6 +33,7 @@
     "@types/react": "^19.1.13",
     "@types/react-dom": "^19.1.9",
     "@vitejs/plugin-react": "^5.0.4",
+    "axe-core": "4.13.0",
     "jsdom": "^30.1.1",
     "typescript": "^5.9.2",
     "vite": "^7.1.7",

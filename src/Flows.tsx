@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
 import type { OpportunityFields, SiteContextFields } from './lib/repository'
 import type { Capture, Opportunity, ReportDraft, Site, TimelineDraft } from './lib/types'
@@ -29,7 +29,7 @@ export function Opportunities({ opportunities, loading, timezone, onCreate, onSt
     catch (err) { setError(err instanceof Error ? err.message : '机会保存失败') }
     finally { setSaving(false) }
   }
-  return <section className="page"><div className="intro-row"><div><span className="eyebrow">先验证，再开始</span><h2>新站计划池</h2><p className="lede">每个想法先写清证据、验证动作和停止条件。</p></div></div>
+  return <section className="page" aria-busy={loading}><div className="intro-row"><div><span className="eyebrow">先验证，再开始</span><h2>新站计划池</h2><p className="lede">每个想法先写清证据、验证动作和停止条件。</p></div></div>
     <form className="panel stack-form" onSubmit={submit}><h3>记录机会</h3><div className="field-grid">{opportunityLabels.map(([key, label]) => <label key={key}>{label}<textarea required rows={key === 'problem' ? 2 : 1} value={fields[key]} onChange={(event) => setFields({ ...fields, [key]: event.target.value })} /></label>)}</div>{error && <p className="form-error" role="alert">{error}</p>}<button disabled={saving} className="primary-button">保存机会</button></form>
     {loading && !opportunities.length ? <p className="empty-state">正在读取云端数据…</p> : opportunities.length ? <div className="opportunity-list">{opportunities.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} timezone={timezone} onStatus={onStatus} onPromote={onPromote} />)}</div> : <p className="empty-state">还没有新站机会。</p>}
   </section>
@@ -46,6 +46,19 @@ function OpportunityCard({ opportunity, timezone, onStatus, onPromote }: {
   const [open, setOpen] = useState(false)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const cardRef = useRef<HTMLElement>(null)
+  const promoteTriggerRef = useRef<HTMLButtonElement>(null)
+  const nameInputRef = useRef<HTMLInputElement>(null)
+  const restoreFocusRef = useRef(false)
+  useEffect(() => {
+    if (open) nameInputRef.current?.focus()
+    else if (restoreFocusRef.current) {
+      const focusTarget = promoteTriggerRef.current ?? cardRef.current
+      focusTarget?.focus({ preventScroll: true })
+      restoreFocusRef.current = false
+    }
+  }, [open])
+  const closePromotion = () => { restoreFocusRef.current = true; setOpen(false) }
   const changeStatus = async (status: Opportunity['status']) => {
     setError(''); setSaving(true)
     try { await onStatus(opportunity, status) }
@@ -54,13 +67,13 @@ function OpportunityCard({ opportunity, timezone, onStatus, onPromote }: {
   }
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setError(''); setSaving(true)
-    try { await onPromote(opportunity, name, dueOn); setOpen(false) }
+    try { await onPromote(opportunity, name, dueOn); closePromotion() }
     catch (err) { setError(err instanceof Error ? err.message : '转入网站失败') }
     finally { setSaving(false) }
   }
-  return <article id={`opportunity-${opportunity.id}`} tabIndex={-1} className="panel opportunity-card"><div className="card-top"><strong>{opportunity.problem}</strong><span className="strategy">{opportunity.status}</span></div><p>证据：{opportunity.evidence}</p><p>验证动作：{opportunity.validation}</p><p>投入上限：{opportunity.budget} · 通过：{opportunity.pass_condition} · 停止：{opportunity.stop_condition}</p>{opportunity.capture_id && <Link to={`/captures#capture-${opportunity.capture_id}`}>查看原始随手记</Link>}
-    <div className="card-actions"><label>状态 <select disabled={saving || Boolean(opportunity.site_id)} value={opportunity.status} onChange={(event) => void changeStatus(event.target.value as Opportunity['status'])}><option>想法</option><option>验证中</option><option>通过</option><option>停止</option></select></label>{opportunity.site_id ? <span>已转入网站</span> : opportunity.status === '通过' && <button className="small-button" onClick={() => setOpen(true)}>转入网站</button>}</div>
-    {open && <form className="stack-form subform" onSubmit={submit}><label>新网站名称<input required value={name} onChange={(event) => setName(event.target.value)} /></label><label>首个行动日期<input required type="date" value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label><div className="card-actions"><button className="small-button" type="button" onClick={() => setOpen(false)}>取消</button><button className="primary-button" disabled={saving}>确认转入</button></div></form>}
+  return <article ref={cardRef} id={`opportunity-${opportunity.id}`} tabIndex={-1} className="panel opportunity-card"><div className="card-top"><strong>{opportunity.problem}</strong><span className="strategy">{opportunity.status}</span></div><p>证据：{opportunity.evidence}</p><p>验证动作：{opportunity.validation}</p><p>投入上限：{opportunity.budget} · 通过：{opportunity.pass_condition} · 停止：{opportunity.stop_condition}</p>{opportunity.capture_id && <Link to={`/captures#capture-${opportunity.capture_id}`}>查看原始随手记</Link>}
+    <div className="card-actions"><label>状态 <select disabled={saving || Boolean(opportunity.site_id)} value={opportunity.status} onChange={(event) => void changeStatus(event.target.value as Opportunity['status'])}><option>想法</option><option>验证中</option><option>通过</option><option>停止</option></select></label>{opportunity.site_id ? <span>已转入网站</span> : opportunity.status === '通过' && <button ref={promoteTriggerRef} className="small-button" aria-label={`转入网站：${opportunity.problem}`} onClick={() => setOpen(true)}>转入网站</button>}</div>
+    {open && <form className="stack-form subform" onSubmit={submit}><label>新网站名称<input ref={nameInputRef} required value={name} onChange={(event) => setName(event.target.value)} /></label><label>首个行动日期<input required type="date" value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label><div className="card-actions"><button className="small-button" type="button" onClick={closePromotion}>取消</button><button className="primary-button" disabled={saving}>确认转入</button></div></form>}
     {error && <p className="form-error" role="alert">{error}</p>}
   </article>
 }
@@ -114,10 +127,14 @@ export function ReportPanel({ site, timezone = DEFAULT_TIMEZONE, onConfirm }: { 
   const [sourceUrl, setSourceUrl] = useState('')
   const [preview, setPreview] = useState<ReportDraft | null>(null)
   const [error, setError] = useState('')
+  const [rawTextError, setRawTextError] = useState('')
+  const [sourceUrlError, setSourceUrlError] = useState('')
   const [saving, setSaving] = useState(false)
   const extract = () => {
     setError('')
-    if (!rawText.trim()) { setError('请先粘贴报告原文'); return }
+    setRawTextError('')
+    setSourceUrlError('')
+    if (!rawText.trim()) { setRawTextError('请先粘贴报告原文'); return }
     const pick = (label: string) => rawText.match(new RegExp(`(?:^|\\n)${label}[：:]\\s*(.+)`, 'i'))?.[1]?.trim() || ''
     setPreview({ id: crypto.randomUUID(), siteId: site.id, siteVersion: site.version, rawText,
       completed: pick('完成'), evidence: pick('证据'), openItems: pick('遗留'), nextStep: pick('下一步') || site.next_action,
@@ -128,9 +145,10 @@ export function ReportPanel({ site, timezone = DEFAULT_TIMEZONE, onConfirm }: { 
     event.preventDefault()
     if (!preview) return
     setError('')
+    setSourceUrlError('')
     if (preview.sourceUrl) {
       try { if (!['http:', 'https:'].includes(new URL(preview.sourceUrl).protocol)) throw new Error() }
-      catch { setError('来源 URL 必须是完整的 http/https 链接'); return }
+      catch { setSourceUrlError('来源 URL 必须是完整的 http/https 链接'); return }
     }
     setSaving(true)
     try { await onConfirm(preview); setPreview(null); setRawText(''); setSourceUrl('') }
@@ -138,7 +156,11 @@ export function ReportPanel({ site, timezone = DEFAULT_TIMEZONE, onConfirm }: { 
     finally { setSaving(false) }
   }
   const field = (key: keyof ReportDraft, label: string, date = false) => <label key={key}>{label}{date ? <input required type="date" value={String(preview?.[key] || '')} onChange={(event) => setPreview((current) => current && { ...current, [key]: event.target.value })} /> : <textarea required value={String(preview?.[key] || '')} onChange={(event) => setPreview((current) => current && { ...current, [key]: event.target.value })} />}</label>
-  return <div className="report-panel subform"><h4>收尾报告</h4><p>按字段标签生成规则预览；人工确认后才回填。</p><label>原文<textarea rows={5} value={rawText} onChange={(event) => { setRawText(event.target.value); setPreview(null) }} placeholder={'完成：…\n证据：…\n遗留：…\n下一步：…'} /></label><label>原始来源 URL（可选）<input type="url" value={sourceUrl} onChange={(event) => { setSourceUrl(event.target.value); setPreview((current) => current && { ...current, sourceUrl: event.target.value }) }} /></label><button type="button" className="small-button" onClick={extract}>生成提取预览</button>
+  const rawTextId = `report-raw-text-${site.id}`
+  const rawTextErrorId = `${rawTextId}-error`
+  const sourceUrlId = `report-source-url-${site.id}`
+  const sourceUrlErrorId = `${sourceUrlId}-error`
+  return <div className="report-panel subform"><h4>收尾报告</h4><p>按字段标签生成规则预览；人工确认后才回填。</p><label>原文<textarea id={rawTextId} rows={5} value={rawText} aria-invalid={rawTextError ? true : undefined} aria-describedby={rawTextError ? rawTextErrorId : undefined} onChange={(event) => { setRawText(event.target.value); setRawTextError(''); setPreview(null) }} placeholder={'完成：…\n证据：…\n遗留：…\n下一步：…'} /></label>{rawTextError && <p id={rawTextErrorId} className="form-error" role="alert">{rawTextError}</p>}<label>原始来源 URL（可选）<input id={sourceUrlId} type="url" value={sourceUrl} aria-invalid={sourceUrlError ? true : undefined} aria-describedby={sourceUrlError ? sourceUrlErrorId : undefined} onChange={(event) => { setSourceUrl(event.target.value); setSourceUrlError(''); setPreview((current) => current && { ...current, sourceUrl: event.target.value }) }} /></label>{sourceUrlError && <p id={sourceUrlErrorId} className="form-error" role="alert">{sourceUrlError}</p>}<button type="button" className="small-button" onClick={extract}>生成提取预览</button>
     {preview && <form className="stack-form preview-form" onSubmit={confirm}><strong>规则演示 · 可编辑 · 待确认</strong>{preview.siteVersion !== site.version && <p role="status">网站已有更新，请核对上方下一行动。<button type="button" className="small-button" onClick={() => setPreview({ ...preview, siteVersion: site.version })}>已核对最新状态</button></p>}<div className="field-grid">{field('completed', '完成')}{field('evidence', '证据')}{field('openItems', '遗留')}{field('nextStep', '下一步')}{field('nextActionDate', '下一行动日期', true)}{field('reviewDate', '复盘日期', true)}{field('observedThrough', '数据观察截至', true)}<label>最终确认截至（可选）<input type="date" value={preview.finalizedThrough} onChange={(event) => setPreview({ ...preview, finalizedThrough: event.target.value })} /></label></div><button className="primary-button" disabled={saving || preview.siteVersion !== site.version}>确认回填</button></form>}
     {error && <p className="form-error" role="alert">{error}</p>}
   </div>
@@ -153,12 +175,14 @@ export function TimelineForm({ site, timezone = DEFAULT_TIMEZONE, onAppend }: { 
   const [observedThrough, setObservedThrough] = useState(dateKey(timezone))
   const [finalizedThrough, setFinalizedThrough] = useState('')
   const [error, setError] = useState('')
+  const [sourceUrlError, setSourceUrlError] = useState('')
   const [saving, setSaving] = useState(false)
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setError('')
+    setSourceUrlError('')
     if (sourceUrl) {
       try { if (!['http:', 'https:'].includes(new URL(sourceUrl).protocol)) throw new Error() }
-      catch { setError('来源 URL 必须是完整的 http/https 链接'); return }
+      catch { setSourceUrlError('来源 URL 必须是完整的 http/https 链接'); return }
     }
     setSaving(true)
     try {
@@ -168,7 +192,9 @@ export function TimelineForm({ site, timezone = DEFAULT_TIMEZONE, onAppend }: { 
     } catch (err) { setError(err instanceof Error ? err.message : '时间线保存失败') }
     finally { setSaving(false) }
   }
-  return <form className="stack-form subform" onSubmit={submit}><h4>追加时间线</h4><label>原始记录<textarea required rows={3} value={text} onChange={(event) => setText(event.target.value)} /></label><label>来源 URL（可选）<input type="url" value={sourceUrl} onChange={(event) => setSourceUrl(event.target.value)} /></label><label>下一行动<input required value={nextAction} onChange={(event) => setNextAction(event.target.value)} /></label><div className="field-grid"><label>行动日期<input required type="date" value={nextActionDate} onChange={(event) => setNextActionDate(event.target.value)} /></label><label>数据观察截至<input type="date" value={observedThrough} onChange={(event) => setObservedThrough(event.target.value)} /></label><label>最终确认截至（可选）<input type="date" value={finalizedThrough} onChange={(event) => setFinalizedThrough(event.target.value)} /></label></div>{site.version !== expectedVersion && <p role="status">网站已有更新，请核对上方下一行动。<button type="button" className="small-button" onClick={() => setExpectedVersion(site.version)}>已核对最新状态</button></p>}{error && <p className="form-error" role="alert">{error}</p>}<button className="small-button" disabled={saving || site.version !== expectedVersion}>保存记录与任务</button></form>
+  const sourceUrlId = `timeline-source-url-${site.id}`
+  const sourceUrlErrorId = `${sourceUrlId}-error`
+  return <form className="stack-form subform" onSubmit={submit}><h4>追加时间线</h4><label>原始记录<textarea required rows={3} value={text} onChange={(event) => setText(event.target.value)} /></label><label>来源 URL（可选）<input id={sourceUrlId} type="url" value={sourceUrl} aria-invalid={sourceUrlError ? true : undefined} aria-describedby={sourceUrlError ? sourceUrlErrorId : undefined} onChange={(event) => { setSourceUrl(event.target.value); setSourceUrlError('') }} /></label>{sourceUrlError && <p id={sourceUrlErrorId} className="form-error" role="alert">{sourceUrlError}</p>}<label>下一行动<input required value={nextAction} onChange={(event) => setNextAction(event.target.value)} /></label><div className="field-grid"><label>行动日期<input required type="date" value={nextActionDate} onChange={(event) => setNextActionDate(event.target.value)} /></label><label>数据观察截至<input type="date" value={observedThrough} onChange={(event) => setObservedThrough(event.target.value)} /></label><label>最终确认截至（可选）<input type="date" value={finalizedThrough} onChange={(event) => setFinalizedThrough(event.target.value)} /></label></div>{site.version !== expectedVersion && <p role="status">网站已有更新，请核对上方下一行动。<button type="button" className="small-button" onClick={() => setExpectedVersion(site.version)}>已核对最新状态</button></p>}{error && <p className="form-error" role="alert">{error}</p>}<button className="small-button" disabled={saving || site.version !== expectedVersion}>保存记录与任务</button></form>
 }
 
 type CaptureRoute = { kind: 'log'; siteId: string; text: string } | { kind: 'task'; siteId: string; title: string; dueOn: string } | { kind: 'opportunity'; fields: OpportunityFields }
@@ -188,6 +214,14 @@ export function CaptureRouteForm({ capture, sites, timezone = DEFAULT_TIMEZONE, 
   const [fields, setFields] = useState<OpportunityFields>({ ...blankOpportunity, problem: capture.text.slice(0, 120) })
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const formRef = useRef<HTMLFormElement>(null)
+  const wasOpenRef = useRef(false)
+  useEffect(() => {
+    if (open) formRef.current?.querySelector<HTMLElement>('input,select,textarea')?.focus()
+    else if (wasOpenRef.current) triggerRef.current?.focus()
+    wasOpenRef.current = open
+  }, [open, kind])
   const submit = async (event: FormEvent) => {
     event.preventDefault(); setError(''); setSaving(true)
     const route: CaptureRoute = kind === 'log' ? { kind, siteId, text } : kind === 'task' ? { kind, siteId, title, dueOn } : { kind, fields }
@@ -195,8 +229,8 @@ export function CaptureRouteForm({ capture, sites, timezone = DEFAULT_TIMEZONE, 
     catch (err) { setError(err instanceof Error ? err.message : '整理失败，原文仍在待整理') }
     finally { setSaving(false) }
   }
-  if (!open) return <button className="small-button" onClick={() => setOpen(true)}>人工整理</button>
-  return <form className="stack-form subform" onSubmit={submit}><label>去向<select value={kind} onChange={(event) => setKind(event.target.value as CaptureRoute['kind'])}><option value="log">写入站点日志</option><option value="task">转为站点任务</option><option value="opportunity">转入新站计划池</option></select></label>
+  if (!open) return <button ref={triggerRef} data-focus-target="capture-route" className="small-button" aria-label={`人工整理：${capture.text.split('\n')[0]}`} onClick={() => setOpen(true)}>人工整理</button>
+  return <form ref={formRef} className="stack-form subform" onSubmit={submit}><label>去向<select value={kind} onChange={(event) => setKind(event.target.value as CaptureRoute['kind'])}><option value="log">写入站点日志</option><option value="task">转为站点任务</option><option value="opportunity">转入新站计划池</option></select></label>
     {kind !== 'opportunity' && <label>所属网站<select required value={siteId} onChange={(event) => setSiteId(event.target.value)}><option value="">请选择</option>{sites.map((site) => <option key={site.id} value={site.id}>{site.name}</option>)}</select></label>}
     {kind === 'log' && <label>整理说明<textarea required value={text} onChange={(event) => setText(event.target.value)} /></label>}
     {kind === 'task' && <><label>任务标题<input required value={title} onChange={(event) => setTitle(event.target.value)} /></label><label>执行日期<input required type="date" value={dueOn} onChange={(event) => setDueOn(event.target.value)} /></label></>}

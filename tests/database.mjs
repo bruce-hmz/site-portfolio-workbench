@@ -28,7 +28,7 @@ try {
     grant execute on function auth.uid() to authenticated, anon;
     insert into auth.users values ('${userA}'), ('${userB}');
   `)
-  for (const file of ['supabase/migrations/20260928000000_initial_production.sql', 'supabase/migrations/20260928010000_core_flows.sql', 'supabase/migrations/20260929000000_profile_timezone.sql']) {
+  for (const file of ['supabase/migrations/20260928000000_initial_production.sql', 'supabase/migrations/20260928010000_core_flows.sql', 'supabase/migrations/20260929000000_profile_timezone.sql', 'supabase/migrations/20260930000000_workspace_reads.sql']) {
     const migration = readFileSync(file, 'utf8')
     await db.exec(migration)
   }
@@ -113,6 +113,23 @@ try {
   assert.equal(await count('tasks'), 6)
   assert.equal((await db.query('select version, next_action from public.sites where id = $1', [siteId])).rows[0].next_action, '联系用户')
 
+  const summaries = await db.query('select site_id, latest_log, latest_report from public.load_site_read_summaries($1::uuid[])', [[siteId]])
+  assert.equal(summaries.rows.length, 1)
+  assert.equal(summaries.rows[0].latest_log.text, '进展')
+  assert.equal(summaries.rows[0].latest_log.observed_through, '2026-10-01')
+  assert.equal(summaries.rows[0].latest_report.open_items, '文案')
+  await db.query(`insert into public.logs(site_id, text, source_type, observed_through, collected_at, confirmed)
+    values
+      ($1, '较早采集、覆盖较新', '来源', '2026-10-08', '2026-10-12T00:00:00Z', true),
+      ($1, '最近采集但覆盖日期较早', '来源', '2026-10-01', '2026-10-13T00:00:00Z', true),
+      ($1, '纯决策日志', '策略决策', null, '2026-10-14T00:00:00Z', true)`, [siteId])
+  const freshnessSummary = await db.query('select latest_log, latest_report from public.load_site_read_summaries($1::uuid[])', [[siteId]])
+  assert.equal(freshnessSummary.rows[0].latest_log.text, '最近采集但覆盖日期较早')
+  assert.equal(freshnessSummary.rows[0].latest_log.observed_through, '2026-10-01')
+  assert.equal(freshnessSummary.rows[0].latest_report.open_items, '文案')
+  await asUser(userB)
+  assert.equal((await db.query('select * from public.load_site_read_summaries($1::uuid[])', [[siteId]])).rows.length, 0)
+
   await asUser(userB)
   for (const table of ['sites', 'tasks', 'captures', 'logs', 'reports', 'opportunities']) {
     assert.equal(await count(table), 0, `${table} should be hidden from user B`)
@@ -124,6 +141,7 @@ try {
   assert.equal(await count('reports'), 0)
 
   await asUser('', 'anon')
+  await fails('select * from public.load_site_read_summaries($1::uuid[])', [[siteId]])
   for (const table of ['sites', 'tasks', 'captures', 'logs', 'reports', 'opportunities']) {
     await fails(`select * from public.${table}`)
   }
